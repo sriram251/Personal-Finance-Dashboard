@@ -1,9 +1,5 @@
 let loans =   [];
 GetDebts();
-function saveData() {
-  localStorage.setItem("loans", JSON.stringify(loans));
-  localStorage.setItem("nextId", nextId.toString());
-}
 
 async function GetDebts(){
     try {
@@ -68,7 +64,6 @@ async function addLoan(event) {
   const emi = calculateLoanEMI(amount, rate, tenure);
 
   const loan = {
-    id: nextId++,
     name,
     amount,
     rate,
@@ -79,8 +74,9 @@ async function addLoan(event) {
     remainingBalance: amount,
   };
   var loanid  = await addData(loan);
+  loan.id = loanid;
+  console.log("Loan added with ID:", loanid);
   loans.push(loan);
-  saveData();
 
   document.getElementById("loanForm").reset();
   renderLoans();
@@ -344,8 +340,8 @@ async function deleteLoan(loanId) {
       "Are you sure you want to delete this loan? This action cannot be undone."
     )
   ) {
-    loans = loans.filter((l) => l.id === loanId);
-    await deleteData(id);
+    loans = loans.filter((l) => l.id !== loanId);
+    await deleteData(loanId);
     renderLoans();
     showAlert("Loan deleted successfully!", "success");
   }
@@ -377,3 +373,45 @@ document.getElementById("startDate").value = new Date()
 
 // Initialize dashboard
 renderLoans();
+
+function getTotalInterestPaid(loan) {
+    // Calculate total interest paid so far
+    let balance = loan.amount;
+    let totalInterest = 0;
+    let monthlyRate = loan.rate / (12 * 100);
+    loan.payments
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .forEach(() => {
+            let interest = balance * monthlyRate;
+            totalInterest += interest;
+            let principal = loan.emi - interest;
+            balance -= principal;
+        });
+    return totalInterest;
+}
+
+function getTotalPrincipalPaid(loan) {
+    // Calculate total principal paid so far
+    let totalPaid = loan.payments.reduce((sum, p) => sum + p.amount, 0);
+    let totalInterest = getTotalInterestPaid(loan);
+    return totalPaid - totalInterest;
+}
+
+function getCurrentPaymentBreakdown(loan) {
+    if (!loan.payments.length) return { interest: 0, principal: 0 };
+    let balance = loan.amount;
+    let monthlyRate = loan.rate / (12 * 100);
+    // Sort payments by date ascending
+    const sortedPayments = loan.payments.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    let interest = 0, principal = 0;
+    for (let i = 0; i < sortedPayments.length; i++) {
+        let thisInterest = balance * monthlyRate;
+        let thisPrincipal = sortedPayments[i].amount - thisInterest;
+        if (i === sortedPayments.length - 1) {
+            interest = thisInterest;
+            principal = thisPrincipal;
+        }
+        balance -= thisPrincipal;
+    }
+    return { interest, principal };
+}
