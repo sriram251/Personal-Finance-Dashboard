@@ -50,7 +50,6 @@ async function getDataById(id) {
         const transaction = db.transaction(storeName, "readonly");
         const store = transaction.objectStore(storeName);
         const request = store.get(id);
-
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });

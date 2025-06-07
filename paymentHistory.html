@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMI Payment Component</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="PaymentHistory.js"></script>
+    <script src="./IndexedDBService.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+        }
+
+        .payment-component {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .component-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .component-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .payment-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .table-custom th {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            font-weight: 600;
+            color: #475569;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 1rem;
+        }
+
+        .table-custom td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #f1f5f9;
+        }
+
+        .table-hover tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+        }
+
+        .chart-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .chart-subtitle {
+            color: #64748b;
+            font-size: 0.9em;
+        }
+
+        .chart-canvas-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .payment-summary-footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 20px;
+        }
+
+        .no-payments {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .no-payments-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Chart Component -->
+        <div class="chart-container mb-4">
+            <div class="chart-header">
+                <div class="chart-title">📈 Payment Forecast Graph</div>
+                <div class="chart-subtitle">Principal vs Interest trend over time</div>
+            </div>
+            <div class="chart-canvas-container">
+                <canvas id="forecastChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Table Component -->
+        <div class="payment-component">
+            <div class="component-header">
+                <div class="component-title">💰 Payment History Table</div>
+                <div class="payment-count" id="paymentCount">0 Payments</div>
+            </div>
+            <div class="table-container">
+                <div id="paymentsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data matching your exact structure
+        const sampleBreakdowns = [
+            {
+                amount: 25000,
+                date: '2024-01-15',
+                note: 'EMI Payment',
+                timestamp: '2024-01-15T10:30:00.000Z',
+                interest: 6500,
+                principal: 18500
+            },
+            {
+                amount: 25000,
+                date: '2024-02-15', 
+                note: 'EMI Payment',
+                timestamp: '2024-02-15T11:15:00.000Z',
+                interest: 6350,
+                principal: 18650
+            },
+            {
+                amount: 25000,
+                date: '2024-03-15',
+                note: 'EMI Payment',
+                timestamp: '2024-03-15T09:45:00.000Z',
+                interest: 6200,
+                principal: 18800
+            },
+            {
+                amount: 30000,
+                date: '2024-04-15',
+                note: 'EMI Payment + Extra',
+                timestamp: '2024-04-15T14:20:00.000Z',
+                interest: 6450,
+                principal: 23550
+            },
+            {
+                amount: 25000,
+                date: '2024-05-15',
+                note: 'EMI Payment',
+                timestamp: '2024-05-15T16:00:00.000Z',
+                interest: 5900,
+                principal: 19100
+            }
+        ];
+
+
+        
+
+        // Initialize with sample data
+        document.addEventListener('DOMContentLoaded', function() {
+            updateComponents(sampleBreakdowns);
+        });
+
+        // Export function for external use
+        window.EMIComponents = {
+            update: updateComponents,
+            formatCurrency: formatCurrency,
+            formatDate: formatDate,
+            formatTimestamp: formatTimestamp
+        };
+    </script>
+</body>
+</html>
