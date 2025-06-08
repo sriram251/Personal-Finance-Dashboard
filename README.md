@@ -1,39 +1,47 @@
 # Personal Finance Dashboard
 
-## Overview
-The Personal Finance Dashboard is a web application designed to help users manage their loans, track EMI payments, and calculate EMIs. It provides an intuitive interface for adding loans, viewing payment history, and monitoring financial statistics.
+A modern web app to track your loans, manage EMI payments, and visualize your financial progress.
 
 ## Features
-- **Loan Management**: Add, view, and delete loans with details like principal amount, interest rate, tenure, and start date.
-- **EMI Calculator**: Calculate monthly EMIs based on loan amount, interest rate, and tenure.
-- **Payment Tracking**: Record payments, view payment history, and track remaining balances.
-- **Dashboard Statistics**: View total active loans, total principal, remaining balance, and monthly EMI.
+- Add, view, and delete loans
+- Calculate EMI for new loans
+- Record payments with interest/principal breakdown
+- Visualize payment history and trends (Chart.js)
+- Data stored locally using IndexedDB
+- Responsive, clean UI (custom CSS, Bootstrap for history page)
 
-## Technologies Used
-- **Frontend**: HTML, CSS, JavaScript
-- **Database**: IndexedDB for storing loan and payment data locally
-
-## File Structure
-- `EMI.html`: The main HTML file for the application interface.
-- `EMI.js`: Contains the core logic for loan management, EMI calculations, and UI updates.
-- `IndexedDBService.js`: Handles CRUD operations for storing and retrieving data from IndexedDB.
+## Project Structure
+```
+Personal-Finance-Dashboard/
+├── EMI.js                  # Main dashboard logic
+├── IndexedDBService.js     # IndexedDB CRUD operations
+├── index.html              # Main dashboard UI
+├── paymentHistory.html     # Payment history & analytics (table + chart)
+├── PaymentHistory.js       # (Optional) JS for payment history page
+├── assets/
+│   └── styles.css          # Main CSS styles
+└── README.md
+```
 
 ## How to Use
-1. Open the `EMI.html` file in a web browser.
-2. Use the "Add New Loan" form to add loan details.
-3. View loan details and statistics on the dashboard.
-4. Use the EMI Calculator to calculate monthly EMIs.
-5. Record payments and view payment history for each loan.
+1. Open `index.html` in your browser to manage loans and payments.
+2. Use the "View History" button to see detailed payment analytics (opens `paymentHistory.html`).
+3. All data is stored locally in your browser (no backend required).
 
-## Screenshots
-- **Dashboard**: Displays loan statistics and active loans.
-- **Add Loan Form**: Allows users to input loan details.
-- **EMI Calculator**: Provides a quick way to calculate EMIs.
+## Scripts
+- `EMI.js`: Handles loan logic, EMI calculation, payment recording, and dashboard updates.
+- `IndexedDBService.js`: Provides IndexedDB CRUD functions for storing loan/payment data.
+- `assets/openPaymentModal.js`: (If present) Handles opening the payment modal.
 
-## Future Enhancements
-- Add user authentication for secure access.
-- Enable cloud-based data storage for cross-device synchronization.
-- Add reminders for upcoming EMI payments.
+## Technologies Used
+- HTML, CSS (custom + Bootstrap for history page)
+- JavaScript (ES6+)
+- IndexedDB (local storage)
+- Chart.js (payment trends)
+
+## Customization
+- Edit `styles.css` for UI changes.
+- Extend `EMI.js` or add new JS modules for more features.
 
 ## License
-This project is licensed under the MIT License. Feel free to use and modify it as needed.
+MIT

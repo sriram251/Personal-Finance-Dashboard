@@ -80,26 +80,26 @@ async function deleteData(id) {
         request.onerror = () => reject(request.error);
     });
 }
+async function bulkAddLoans(loans) {
+    const db = await openDatabase(); // your existing openDatabase() function
+    const tx = db.transaction(storeName, "readwrite");
+    const store = tx.objectStore(storeName);
 
-// // Example usage
-// (async () => {
-//     try {
-//         const id = await addData({ name: "John Doe", age: 30 });
-//         console.log("Added data with ID:", id);
+    loans.forEach(loan => {
+        store.add(loan); // use .put() if you want to update existing records too
+    });
 
-//         const data = await getDataById(id);
-//         console.log("Retrieved data:", data);
-
-//         await updateData(id, { name: "Jane Doe", age: 25 });
-//         console.log("Updated data");
-
-//         await deleteData(id);
-//         console.log("Deleted data");
-//     } catch (error) {
-//         console.error("Error:", error);
-//     }
-// })();
-// Get all data from the store
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => {
+            console.log(`${loans.length} loans added successfully`);
+            resolve();
+        };
+        tx.onerror = () => {
+            console.error("Error during bulk add");
+            reject(tx.error);
+        };
+    });
+}
 async function getAlldebts() {
     const db = await openDatabase();
     return new Promise((resolve, reject) => {

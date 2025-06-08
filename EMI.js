@@ -1,6 +1,74 @@
 let loans = [];
 GetDebts();
+function init() {
+GetDebts();
+document.getElementById("fileUpload").addEventListener("change", importData);
+}
+document.addEventListener("DOMContentLoaded", init);
 
+async function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById("importStatus").innerText = "Processing file...";
+
+    const reader = new FileReader();
+    reader.onload = async function (event) {
+        try {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, { type: "array" });
+
+            // Step 1: Parse Loans Summary sheet
+            const summarySheet = workbook.Sheets["Loans"];
+            const summaryData = XLSX.utils.sheet_to_json(summarySheet);
+
+            // Step 2: For each loan, get its payment sheet and reconstruct the object
+            const importedLoans = [];
+
+            for (const row of summaryData) {
+                const loanName = Object.keys(workbook.Sheets).find(sheet =>
+                    sheet.endsWith(row.Name)
+                );
+
+                if (!loanName) continue;
+
+                const paymentSheet = workbook.Sheets[loanName];
+                const paymentData = XLSX.utils.sheet_to_json(paymentSheet);
+
+                const loan = {
+                    id: parseInt(row.ID),
+                    name: row.Name,
+                    amount: parseFloat(row.Amount.replace(/[^\d.-]/g, "")),
+                    rate: parseFloat(row["Rate (%)"]),
+                    tenure: parseInt(row["Tenure (Months)"]),
+                    startDate: row["Start Date"],
+                    emi: parseFloat(row["Monthly EMI"].replace(/[^\d.-]/g, "")),
+                    remainingBalance: parseFloat(row["Remaining Balance"].replace(/[^\d.-]/g, "")),
+                    payments: paymentData.map(p => ({
+                        amount: parseFloat(p.Amount.replace(/[^\d.-]/g, "")),
+                        date: p["Payment Date"],
+                        note: p.Note || "",
+                        timestamp: p.Timestamp,
+                        interest: parseFloat(p.Interest.replace(/[^\d.-]/g, "")),
+                        principal: parseFloat(p.Principal.replace(/[^\d.-]/g, "")),
+                    }))
+                };
+
+                importedLoans.push(loan);
+            }
+
+            // Step 3: Save all loans to IndexedDB
+            await bulkAddLoans(importedLoans);
+
+            document.getElementById("importStatus").innerText = `✅ Successfully imported ${importedLoans.length} loans.`;
+        } catch (err) {
+            console.error("Import error:", err);
+            document.getElementById("importStatus").innerText = "❌ Error importing file.";
+        }
+    };
+
+    reader.readAsArrayBuffer(file);
+}
 async function GetDebts() {
   try {
     loans = await getAlldebts();
@@ -43,7 +111,7 @@ function calculateLoanEMI(amount, rate, tenure) {
 }
 
 function formatCurrency(amount) {
-  if( isNaN(amount) || amount < 0) {
+  if (isNaN(amount) || amount < 0) {
     return 0;
   }
   return `₹${Math.round(amount).toLocaleString()}`;
@@ -131,7 +199,7 @@ function renderLoans() {
             <div class="loan-header">
                 <div class="loan-title">${loan.name}</div>
                 <span class="loan-status ${
-              isCompleted ? "status-completed" : "status-active"
+                  isCompleted ? "status-completed" : "status-active"
                 }">
                 ${isCompleted ? "Completed" : "Active"}
                 </span>
@@ -139,21 +207,15 @@ function renderLoans() {
             
             <div class="loan-details">
                 <div class="detail-item">
-                <div class="detail-value">${formatCurrency(
-                  loan.amount
-                )}</div>
+                <div class="detail-value">${formatCurrency(loan.amount)}</div>
                 <div class="detail-label">Principal</div>
                 </div>
                 <div class="detail-item">
-                <div class="detail-value">${formatCurrency(
-                  loan.emi
-                )}</div>
+                <div class="detail-value">${formatCurrency(loan.emi)}</div>
                 <div class="detail-label">Monthly EMI</div>
                 </div>
                 <div class="detail-item">
-                <div class="detail-value">${formatCurrency(
-                  remaining
-                )}</div>
+                <div class="detail-value">${formatCurrency(remaining)}</div>
                 <div class="detail-label">Remaining</div>
                 </div>
                 <div class="detail-item">
@@ -161,15 +223,11 @@ function renderLoans() {
                 <div class="detail-label">Interest Rate</div>
                 </div>
                 <div class="detail-item">
-                <div class="detail-value">${
-                  loan.payments.length
-                }</div>
+                <div class="detail-value">${loan.payments.length}</div>
                 <div class="detail-label">Payments Made</div>
                 </div>
                 <div class="detail-item">
-                <div class="detail-value">${formatDate(
-                  loan.startDate
-                )}</div>
+                <div class="detail-value">${formatDate(loan.startDate)}</div>
                 <div class="detail-label">Start Date</div>
                 </div>
             </div>
@@ -190,13 +248,15 @@ function renderLoans() {
             
             <div class="payment-actions">
                 ${
-              !isCompleted
-                ? `<button class="btn" onclick="openPaymentModal(${loan.id})">💳 Make Payment</button>`
-                : ""
+                  !isCompleted
+                    ? `<button class="btn" onclick="openPaymentModal(${loan.id})">💳 Make Payment</button>`
+                    : ""
                 }
-                <button class="btn btn-secondary" onclick="window.location.href='paymenthistory.html?loanid=${loan.id}'">📊 View History</button>
+                <button class="btn btn-secondary" onclick="window.location.href='paymenthistory.html?loanid=${
+                  loan.id
+                }'">📊 View History</button>
                 <button class="btn btn-danger" onclick="deleteLoan(${
-              loan.id
+                  loan.id
                 })">🗑️ Delete</button>
             </div>
             </div>
@@ -205,7 +265,70 @@ function renderLoans() {
     .join("");
   updateStats();
 }
+function exportToExcel() {
+  const wb = XLSX.utils.book_new();
 
+  // --- Overview Sheet ---
+  const overviewData = [
+    ["📘 This file contains your loan data."],
+    ["📌 You can edit values in the 'Loans' sheet."],
+    ["⚠️ Do NOT edit formulas in individual loan sheets."],
+  ];
+  const overviewWS = XLSX.utils.aoa_to_sheet(overviewData);
+  XLSX.utils.book_append_sheet(wb, overviewWS, "Overview");
+
+  // --- Loans Summary Sheet ---
+  const summaryData = [
+    [
+      "ID",
+      "Name",
+      "Amount",
+      "Rate (%)",
+      "Tenure (Months)",
+      "Start Date",
+      "Monthly EMI",
+      "Remaining Balance",
+    ],
+  ];
+
+  loans.forEach((loan) => {
+    summaryData.push([
+      loan.id,
+      loan.name,
+      formatCurrency(loan.amount),
+      loan.rate,
+      loan.tenure,
+      formatDate(loan.startDate),
+      formatCurrency(loan.emi),
+      formatCurrency(loan.remainingBalance),
+    ]);
+  });
+
+  const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(wb, summaryWS, "Loans");
+
+  // --- Individual Sheets for Each Loan ---
+  loans.forEach((loan, index) => {
+    const paymentRows = loan.payments.map((payment, i) => ({
+      "S.No": i + 1,
+      "Payment Date": formatDate(payment.date),
+      Amount: formatCurrency(payment.amount),
+      Principal: formatCurrency(payment.principal),
+      Interest: formatCurrency(payment.interest),
+      Note: payment.note || "",
+      Timestamp: payment.timestamp,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(paymentRows);
+    ws["!autofilter"] = { ref: "A1:F1" };
+
+    const sheetName = `${index + 1}. ${loan.name}`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // --- Export File ---
+  XLSX.writeFile(wb, `All_Loans_Details.xlsx`);
+}
 function getNextPaymentDate(loan) {
   if (loan.payments.length === 0) {
     const startDate = new Date(loan.startDate);
@@ -273,33 +396,33 @@ function openPaymentModal(loanId) {
   document.getElementById("paymentModal").style.display = "block";
 }
 function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }).format(amount);
-        }
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric'
-            });
-        }
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-        function formatTimestamp(timestamp) {
-            const date = new Date(timestamp);
-            return date.toLocaleString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
+function formatTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function insertPaymentSorted(payments, payment) {
   if (payments.length === 0) {
